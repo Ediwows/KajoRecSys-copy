@@ -1,14 +1,15 @@
 <x-layouts::app :title="__('Dashboard')">
 
-    <div class="flex h-full w-full flex-1 flex-col gap-6">
+    <main class="min-h-screen bg-[#f6f5f1] p-5 text-slate-900 dark:bg-[#111712] dark:text-zinc-100 sm:p-6 lg:p-8">
+    <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
 
         <!-- Welcome Header -->
-        <div class="rounded-2xl bg-gradient-to-r from-green-950 via-green-800 to-green-600 p-8 text-white shadow-lg">
+        <div class="rounded-2xl bg-[#09ba44] p-8 text-[#092010] shadow-lg dark:bg-[#20783e] dark:text-white">
 
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
 
                 <div>
-                    <p class="text-green-200 text-sm font-medium">
+                    <p class="text-sm font-medium opacity-80">
                         Guidance Office
                     </p>
 
@@ -16,13 +17,13 @@
                         Welcome to KAJOREC
                     </h1>
 
-                    <p class="mt-2 text-green-100">
+                    <p class="mt-2 opacity-90">
                         Guidance Office Record Management and Appointment System
                     </p>
                 </div>
 
                 <div class="text-left md:text-right">
-                    <p class="text-sm text-green-200">
+                    <p class="text-sm opacity-80">
                         {{ now()->format('l') }}
                     </p>
 
@@ -171,7 +172,7 @@
                         </p>
                     </div>
 
-                    <a href="#" class="text-sm font-medium text-green-700 hover:text-green-800">
+                    <a href="#" class="text-sm font-medium text-[#28643a] hover:underline dark:text-[#91dfa6]">
                         View All
                     </a>
 
@@ -347,5 +348,6 @@
         </div>
 
     </div>
+    </main>
 
 </x-layouts::app>

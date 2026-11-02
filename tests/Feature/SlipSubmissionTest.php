@@ -41,9 +41,37 @@ class SlipSubmissionTest extends TestCase
             ->assertNotFound();
 
         foreach (SlipCatalog::all() as $slug => $slip) {
+            if ($slug === 'student-referral-slip') {
+                continue;
+            }
+
+            $relatedAssignmentId = null;
+            if ($slug === 'class-admission-slip') {
+                $referralSubmission = SlipSubmission::create([
+                    'user_id' => $user->id,
+                    'slip' => 'student-referral-slip',
+                    'data' => [
+                        'student_name' => $user->name,
+                        'sex' => 'Female',
+                        'program_year' => 'BSIT - First Year',
+                        'date_absent' => '2026-10-01',
+                        'days_absent' => 1,
+                    ],
+                    'pdf_path' => 'slip-submissions/referral-test.pdf',
+                ]);
+                $relatedAssignmentId = SlipAssignment::create([
+                    'assigned_by' => $teacher->id,
+                    'student_id' => $user->id,
+                    'slip' => 'student-referral-slip',
+                    'status' => 'submitted',
+                    'slip_submission_id' => $referralSubmission->id,
+                ])->id;
+            }
+
             $assignment = SlipAssignment::create([
                 'assigned_by' => $teacher->id,
                 'student_id' => $user->id,
+                'related_assignment_id' => $relatedAssignmentId,
                 'slip' => $slug,
             ]);
 
@@ -63,7 +91,7 @@ class SlipSubmissionTest extends TestCase
                     } elseif ($field['required']) {
                         $details[$field['key']] = $field['type'] === 'date'
                             ? '2026-10-07'
-                            : 'Sample answer';
+                            : ($field['type'] === 'number' ? 1 : 'Sample answer');
                     }
                 }
             }
@@ -96,6 +124,11 @@ class SlipSubmissionTest extends TestCase
             $this->actingAs($user)
                 ->get(route('slip-history.index'))
                 ->assertOk()
+                ->assertSee('data-system-theme', false)
+                ->assertSee('bg-[#f6f5f1]', false)
+                ->assertSee('dark:bg-[#111712]', false)
+                ->assertSee('dark:bg-zinc-900', false)
+                ->assertSee('dark:text-[#91dfa6]', false)
                 ->assertSee($slip['title'])
                 ->assertSee('Slip History');
         }
@@ -112,6 +145,15 @@ class SlipSubmissionTest extends TestCase
         $dashboard = $this->actingAs($teacher)
             ->get(route('teacher.dashboard'))
             ->assertOk()
+            ->assertSee('data-system-theme', false)
+            ->assertSee('bg-[#09ba44]', false)
+            ->assertSee('dark:bg-[#20783e]', false)
+            ->assertSee('Teacher Dashboard')
+            ->assertSee('Create Student Referral')
+            ->assertSee(route('slips.fillup', 'student-referral-slip'), false)
+            ->assertSee('Referrals I Sent')
+            ->assertSee('#referrals')
+            ->assertSee('Guidance Slips')
             ->assertSee('Referral')
             ->assertSee('Student Referral Slip')
             ->assertDontSee('Certificate of No Scholarship')
@@ -189,25 +231,20 @@ class SlipSubmissionTest extends TestCase
             'role' => 'student',
         ]);
 
-        $this->actingAs($teacher)
-            ->post(route('slips.assign', 'student-referral-slip'), ['student_id' => $student->id])
-            ->assertRedirect(route('slips.index'));
-        $referral = SlipAssignment::firstOrFail();
-
-        $this->actingAs($student)
-            ->post(route('assigned-slips.submit', $referral), [
-                'details' => [
-                    'student_id' => $student->id_number,
-                    'student_name' => $student->name,
-                    'program_year' => 'BSIT - First Year',
-                    'referral_reasons' => ['academic_deficiencies'],
-                ],
-            ])
-            ->assertSessionHasNoErrors();
+        $referral = $this->sendTeacherReferral($teacher, $student);
 
         $this->actingAs($counselor)
             ->get(route('guidance.dashboard'))
             ->assertOk()
+            ->assertSee('data-system-theme', false)
+            ->assertSee('bg-[#f6f5f1]', false)
+            ->assertSee('dark:bg-[#111712]', false)
+            ->assertSee('bg-[#09ba44]', false)
+            ->assertSee('dark:bg-[#20783e]', false)
+            ->assertSee('Guidance Dashboard')
+            ->assertSee('Review Submissions')
+            ->assertSee('Received Referrals')
+            ->assertSee('#received-referrals')
             ->assertSee('Received Student Referral Slips')
             ->assertSee($student->name)
             ->assertSee('Issue CIF (first-time)')
@@ -226,20 +263,7 @@ class SlipSubmissionTest extends TestCase
             ->post(route('guidance.slip-review.issue', [$referral, 'qf-bo-oss-04-client-information-form']))
             ->assertStatus(409);
 
-        $this->actingAs($teacher)
-            ->post(route('slips.assign', 'student-referral-slip'), ['student_id' => $student->id])
-            ->assertRedirect(route('slips.index'));
-        $secondReferral = SlipAssignment::query()->latest('id')->firstOrFail();
-        $this->actingAs($student)
-            ->post(route('assigned-slips.submit', $secondReferral), [
-                'details' => [
-                    'student_id' => $student->id_number,
-                    'student_name' => $student->name,
-                    'program_year' => 'BSIT - First Year',
-                    'referral_reasons' => ['academic_deficiencies'],
-                ],
-            ])
-            ->assertSessionHasNoErrors();
+        $secondReferral = $this->sendTeacherReferral($teacher, $student);
         $this->actingAs($counselor)
             ->post(route('guidance.slip-review.issue', [$secondReferral, 'qf-bo-oss-04-client-information-form']))
             ->assertStatus(409);
@@ -254,24 +278,81 @@ class SlipSubmissionTest extends TestCase
         $this->actingAs($student)
             ->get(route('assigned-slips.fillup', $classAdmission))
             ->assertOk()
-            ->assertSee("Student's Reason / Supporting Proof (Excused or Not)");
+            ->assertSee('Cause/s of Absences')
+            ->assertSee($student->name)
+            ->assertSee('2026-10-01')
+            ->assertSee('1')
+            ->assertDontSee('name="details[student_name]"', false)
+            ->assertDontSee('name="details[date_absent]"', false)
+            ->assertDontSee('name="details[days_absent]"', false)
+            ->assertDontSee('name="details[referral_slip_number]"', false)
+            ->assertDontSee('name="details[date_received]"', false)
+            ->assertDontSee('name="details[actions_taken][]"', false)
+            ->assertDontSee('name="details[excused_status]"', false);
 
         $this->actingAs($student)
             ->post(route('assigned-slips.submit', $classAdmission), [
                 'details' => [
                     'student_id' => $student->id_number,
-                    'student_name' => $student->name,
-                    'program_year' => 'BSIT - First Year',
-                    'date_absent' => '2026-10-01',
-                    'days_absent' => '1 day',
-                    'absence_causes' => 'I was ill and am providing my medical certificate for review.',
+                    'absence_causes' => ['health_related', 'other'],
                 ],
             ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(
-            'I was ill and am providing my medical certificate for review.',
+            'BSIT - First Year',
+            $classAdmission->fresh()->slipSubmission->data['program_year']
+        );
+        $this->assertSame(
+            ['health_related', 'other'],
             $classAdmission->fresh()->slipSubmission->data['absence_causes']
+        );
+        $this->assertSame('Female', $classAdmission->fresh()->slipSubmission->data['sex']);
+        $this->assertSame('2026-10-01', $classAdmission->fresh()->slipSubmission->data['date_absent']);
+        $this->assertSame(1, $classAdmission->fresh()->slipSubmission->data['days_absent']);
+
+        $classAdmissionSubmission = $classAdmission->fresh()->slipSubmission;
+        $this->actingAs($counselor)
+            ->get(route('slips.submissions.show', $classAdmissionSubmission))
+            ->assertOk()
+            ->assertSee('Guidance Office Review')
+            ->assertSee('Reference Referral Slip No.')
+            ->assertSee('Date Received')
+            ->assertSee('Action/s Taken')
+            ->assertSee('Absence Decision');
+
+        $pdfBeforeGuidanceReview = Storage::disk('local')->get($classAdmissionSubmission->pdf_path);
+        $this->actingAs($counselor)
+            ->post(route('guidance.slip-review.approve', $classAdmission), [])
+            ->assertSessionHasErrors([
+                'details.referral_slip_number',
+                'details.date_received',
+                'details.actions_taken',
+                'details.excused_status',
+            ]);
+
+        $this->actingAs($counselor)
+            ->post(route('guidance.slip-review.approve', $classAdmission), [
+                'details' => [
+                    'referral_slip_number' => 'SR-1001',
+                    'date_received' => '2026-10-02',
+                    'actions_taken' => ['verified_documents', 'interviewed_with_guidance'],
+                    'excused_status' => 'excused',
+                ],
+            ])
+            ->assertRedirect(route('guidance.slip-review'));
+
+        $this->assertSame('approved', $classAdmission->fresh()->status);
+        $this->assertSame('SR-1001', $classAdmissionSubmission->fresh()->data['referral_slip_number']);
+        $this->assertSame('2026-10-02', $classAdmissionSubmission->fresh()->data['date_received']);
+        $this->assertSame(
+            ['verified_documents', 'interviewed_with_guidance'],
+            $classAdmissionSubmission->fresh()->data['actions_taken']
+        );
+        $this->assertSame('excused', $classAdmissionSubmission->fresh()->data['excused_status']);
+        $this->assertNotSame(
+            $pdfBeforeGuidanceReview,
+            Storage::disk('local')->get($classAdmissionSubmission->pdf_path)
         );
     }
 
@@ -349,6 +430,14 @@ class SlipSubmissionTest extends TestCase
         $response = $this->actingAs($student)
             ->get(route('student.dashboard'))
             ->assertOk()
+            ->assertSee('data-system-theme', false)
+            ->assertSee('bg-[#09ba44]', false)
+            ->assertSee('dark:bg-[#20783e]', false)
+            ->assertSee('Student Dashboard')
+            ->assertSee('Assigned Slips')
+            ->assertSee('Slip History')
+            ->assertSee('Request a Form')
+            ->assertSee('#request-forms')
             ->assertSee('Pending Assigned Slips')
             ->assertSee('Awaiting Approval')
             ->assertSee('Submitted Slips')
@@ -366,7 +455,7 @@ class SlipSubmissionTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_teacher_assigns_a_student_who_completes_the_slip(): void
+    public function test_teacher_verifies_and_sends_a_completed_locked_referral(): void
     {
         Storage::fake('local');
         $teacher = User::factory()->create([
@@ -389,77 +478,83 @@ class SlipSubmissionTest extends TestCase
         $this->actingAs($teacher)
             ->get(route('slips.fillup', 'student-referral-slip'))
             ->assertOk()
-            ->assertSee('Select a Student')
+            ->assertSee('Verify Student Information')
+            ->assertSee('Student ID No.')
+            ->assertSee('Name of Student')
+            ->assertSee('Date')
+            ->assertSee('Sex')
+            ->assertSee('Reason for Referral')
+            ->assertSee('I verified the selected student')
             ->assertSee('Selected Student')
             ->assertDontSee('<option value="'.$teacher->id.'"', false);
 
         $this->actingAs($teacher)
-            ->post(route('slips.assign', 'student-referral-slip'), ['student_id' => $student->id])
-            ->assertRedirect(route('slips.index'));
+            ->post(route('slips.assign', 'student-referral-slip'), [
+                'student_id' => $student->id,
+                'details' => $this->teacherReferralDetails($student),
+            ])
+            ->assertSessionHasErrors(['information_verified']);
+        $this->assertSame(0, SlipAssignment::count());
+
+        $details = $this->teacherReferralDetails($student);
+        $details['student_id'] = 'FORGED-ID';
+        $details['student_name'] = 'Incorrect Name';
+        $details['sex'] = 'Female';
+
+        $this->actingAs($teacher)
+            ->post(route('slips.assign', 'student-referral-slip'), [
+                'student_id' => $student->id,
+                'information_verified' => '1',
+                'details' => $details,
+            ])
+            ->assertRedirect(route('teacher.dashboard'));
 
         $assignment = SlipAssignment::firstOrFail();
         $this->assertSame($teacher->id, $assignment->assigned_by);
         $this->assertSame($student->id, $assignment->student_id);
-        $this->assertSame('pending', $assignment->status);
+        $this->assertSame('submitted', $assignment->status);
+        $submission = $assignment->fresh()->slipSubmission;
+        $this->assertNotNull($submission);
+        $this->assertSame($student->id, $submission->user_id);
+        $this->assertSame($student->id_number, $submission->data['student_id']);
+        $this->assertSame($student->name, $submission->data['student_name']);
+        $this->assertSame('Male', $submission->data['sex']);
+        $this->assertSame(now()->toDateString(), $submission->data['request_date']);
+        $this->assertTrue($submission->data['submitted_by_teacher']);
+        $this->assertSame(['class_attendance'], $submission->data['referral_reasons']);
+        Storage::disk('local')->assertExists($submission->pdf_path);
 
         $this->actingAs($student)
             ->get(route('assigned-slips.index'))
             ->assertOk()
+            ->assertSee('data-system-theme', false)
+            ->assertSee('bg-[#f6f5f1]', false)
+            ->assertSee('dark:bg-[#111712]', false)
+            ->assertSee('dark:bg-zinc-900', false)
+            ->assertSee('bg-[#09ba44]', false)
+            ->assertSee('dark:bg-[#20783e]', false)
             ->assertSee('Student Referral Slip')
-            ->assertSee('Not started');
-
+            ->assertSee('View sent referral');
         $this->actingAs($student)
             ->get(route('assigned-slips.fillup', $assignment))
             ->assertOk()
-            ->assertSee('Assigned to: <strong>'.$student->name.'</strong>', false)
-            ->assertSee($student->id_number);
+            ->assertSee('Submit to Guidance Counselor')
+            ->assertSee('Class Attendance')
+            ->assertDontSee('name="details[referral_reasons][]"', false);
         $this->actingAs($otherStudent)
             ->get(route('assigned-slips.fillup', $assignment))
             ->assertForbidden();
 
-        $response = $this->actingAs($student)->post(route('assigned-slips.submit', $assignment), [
-            'details' => [
-                'student_id' => $student->id_number,
-                'student_name' => 'Forged Name',
-                'program_year' => 'BSIT',
-                'referral_reasons' => ['academic_deficiencies'],
-            ],
-        ]);
-
-        $submission = SlipSubmission::firstOrFail();
-
-        $response->assertRedirect(route('slips.submissions.show', $submission));
-        $this->assertSame($student->id, $submission->user_id);
-        $this->assertSame($student->id, $submission->data['referred_student_id']);
-        $this->assertSame($student->name, $submission->data['student_name']);
-        $this->assertSame('submitted', $assignment->fresh()->status);
-
-        $this->actingAs($teacher)
-            ->post(route('assigned-slips.submit', $assignment), ['details' => []])
-            ->assertForbidden();
-        $this->actingAs($teacher)
-            ->post(route('guidance.slip-review.approve', $assignment))
-            ->assertRedirect(route('teacher.dashboard'));
-
-        $this->actingAs($student)
-            ->get(route('assigned-slips.fillup', $assignment))
-            ->assertOk()
-            ->assertSee('Save Changes')
-            ->assertSee('Academic Deficiencies');
-
         $this->actingAs($student)
             ->post(route('assigned-slips.submit', $assignment), [
                 'details' => [
-                    'student_id' => $student->id_number,
-                    'student_name' => 'Forged Name',
-                    'program_year' => 'BSIT',
-                    'referral_reasons' => ['academic_deficiencies'],
+                    'student_id' => 'FORGED',
+                    'referral_reasons' => ['student_employment'],
                 ],
             ])
             ->assertRedirect(route('slips.submissions.show', $submission));
-
-        $this->assertSame(1, SlipSubmission::count());
-        $this->assertSame(['academic_deficiencies'], $submission->fresh()->data['referral_reasons']);
+        $this->assertSame(['class_attendance'], $submission->fresh()->data['referral_reasons']);
+        $this->assertSame('submitted', $assignment->fresh()->status);
 
         $counselor = User::factory()->create([
             'id_number' => 'GUIDANCE-2001',
@@ -484,7 +579,7 @@ class SlipSubmissionTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_student_referral_stays_editable_until_the_counselor_approves_it(): void
+    public function test_teacher_submitted_referral_is_locked_until_counselor_approval(): void
     {
         Storage::fake('local');
         $teacher = User::factory()->create([
@@ -503,23 +598,8 @@ class SlipSubmissionTest extends TestCase
             'role' => 'guidance_counselor',
         ]);
 
-        $this->actingAs($teacher)
-            ->post(route('slips.assign', 'student-referral-slip'), ['student_id' => $student->id])
-            ->assertRedirect(route('slips.index'));
-        $referral = SlipAssignment::firstOrFail();
-
-        $this->actingAs($student)
-            ->post(route('assigned-slips.submit', $referral), [
-                'details' => [
-                    'student_id' => $student->id_number,
-                    'student_name' => $student->name,
-                    'program_year' => 'BSIT - First Year',
-                    'referral_reasons' => ['academic_deficiencies'],
-                ],
-            ])
-            ->assertSessionHasNoErrors();
-
-        $submission = SlipSubmission::firstOrFail();
+        $referral = $this->sendTeacherReferral($teacher, $student);
+        $submission = $referral->fresh()->slipSubmission;
 
         $this->actingAs($counselor)
             ->get(route('guidance.slip-review'))
@@ -531,23 +611,22 @@ class SlipSubmissionTest extends TestCase
             ->get(route('assigned-slips.index'))
             ->assertOk()
             ->assertSee('Awaiting approval')
-            ->assertSee('Edit submission');
+            ->assertSee('View sent referral')
+            ->assertDontSee('Edit submission');
         $this->actingAs($student)
             ->get(route('assigned-slips.fillup', $referral))
             ->assertOk()
-            ->assertSee('Save Changes');
+            ->assertSee('Submit to Guidance Counselor')
+            ->assertDontSee('name="details[referral_reasons][]"', false);
 
         $this->actingAs($student)
             ->post(route('assigned-slips.submit', $referral), [
                 'details' => [
-                    'student_id' => $student->id_number,
-                    'student_name' => $student->name,
-                    'program_year' => 'BSIT - First Year',
                     'referral_reasons' => ['psychological_testing'],
                 ],
             ])
             ->assertRedirect(route('slips.submissions.show', $submission));
-        $this->assertSame(['psychological_testing'], $submission->fresh()->data['referral_reasons']);
+        $this->assertSame(['class_attendance'], $submission->fresh()->data['referral_reasons']);
         $this->assertSame('submitted', $referral->fresh()->status);
 
         $this->actingAs($counselor)
@@ -557,6 +636,102 @@ class SlipSubmissionTest extends TestCase
         $this->actingAs($student)
             ->get(route('assigned-slips.fillup', $referral))
             ->assertForbidden();
+    }
+
+    public function test_teacher_can_cancel_own_unapproved_referral_and_linked_forms(): void
+    {
+        Storage::fake('local');
+        $teacher = User::factory()->create([
+            'id_number' => 'CANCEL-TEACHER-1',
+            'gender' => 'female',
+            'role' => 'teacher',
+        ]);
+        $otherTeacher = User::factory()->create([
+            'id_number' => 'CANCEL-TEACHER-2',
+            'gender' => 'male',
+            'role' => 'teacher',
+        ]);
+        $student = User::factory()->create([
+            'id_number' => 'CANCEL-STUDENT-1',
+            'gender' => 'male',
+            'role' => 'student',
+        ]);
+        $counselor = User::factory()->create([
+            'id_number' => 'CANCEL-COUNSELOR-1',
+            'gender' => 'female',
+            'role' => 'guidance_counselor',
+        ]);
+
+        $referral = $this->sendTeacherReferral($teacher, $student);
+        $referralSubmission = $referral->fresh()->slipSubmission;
+        $followupSubmission = SlipSubmission::create([
+            'user_id' => $student->id,
+            'slip' => 'class-admission-slip',
+            'data' => ['student_name' => $student->name],
+            'pdf_path' => 'slip-submissions/class-admission-test.pdf',
+            'review_status' => 'submitted',
+        ]);
+        $followup = SlipAssignment::create([
+            'assigned_by' => $counselor->id,
+            'student_id' => $student->id,
+            'related_assignment_id' => $referral->id,
+            'slip' => 'class-admission-slip',
+            'status' => 'submitted',
+            'slip_submission_id' => $followupSubmission->id,
+        ]);
+
+        $this->actingAs($otherTeacher)
+            ->post(route('teacher.referrals.cancel', $referral))
+            ->assertNotFound();
+        $this->assertSame('submitted', $referral->fresh()->status);
+
+        $this->actingAs($teacher)
+            ->get(route('teacher.dashboard'))
+            ->assertOk()
+            ->assertSee('Cancel referral');
+
+        $this->actingAs($teacher)
+            ->post(route('teacher.referrals.cancel', $referral))
+            ->assertRedirect(route('teacher.dashboard'))
+            ->assertSessionHas('status');
+
+        $this->assertSame('cancelled', $referral->fresh()->status);
+        $this->assertSame('cancelled', $referralSubmission->fresh()->review_status);
+        $this->assertSame('cancelled', $followup->fresh()->status);
+        $this->assertSame('cancelled', $followupSubmission->fresh()->review_status);
+
+        $this->actingAs($counselor)
+            ->get(route('guidance.slip-review'))
+            ->assertOk()
+            ->assertDontSee($student->name);
+
+        $this->actingAs($student)
+            ->get(route('assigned-slips.fillup', $followup))
+            ->assertForbidden();
+    }
+
+    public function test_teacher_cannot_cancel_approved_referral(): void
+    {
+        Storage::fake('local');
+        $teacher = User::factory()->create([
+            'id_number' => 'CANCEL-APPROVED-TEACHER',
+            'gender' => 'female',
+            'role' => 'teacher',
+        ]);
+        $student = User::factory()->create([
+            'id_number' => 'CANCEL-APPROVED-STUDENT',
+            'gender' => 'male',
+            'role' => 'student',
+        ]);
+
+        $referral = $this->sendTeacherReferral($teacher, $student);
+        $referral->update(['status' => 'approved']);
+
+        $this->actingAs($teacher)
+            ->post(route('teacher.referrals.cancel', $referral))
+            ->assertStatus(409);
+
+        $this->assertSame('approved', $referral->fresh()->status);
     }
 
     public function test_student_cannot_open_another_students_slip_submission(): void
@@ -586,5 +761,38 @@ class SlipSubmissionTest extends TestCase
             ->get(route('slip-history.index'))
             ->assertOk()
             ->assertDontSee('student-referral-slip');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function teacherReferralDetails(User $student): array
+    {
+        return [
+            'student_id' => $student->id_number,
+            'student_name' => $student->name,
+            'request_date' => now()->toDateString(),
+            'program_year' => 'BSIT - First Year',
+            'sex' => ucfirst($student->gender),
+            'date_absent' => '2026-10-01',
+            'days_absent' => 1,
+            'referral_reasons' => ['class_attendance'],
+        ];
+    }
+
+    private function sendTeacherReferral(User $teacher, User $student): SlipAssignment
+    {
+        $this->actingAs($teacher)
+            ->post(route('slips.assign', 'student-referral-slip'), [
+                'student_id' => $student->id,
+                'information_verified' => '1',
+                'details' => $this->teacherReferralDetails($student),
+            ])
+            ->assertRedirect(route('teacher.dashboard'));
+
+        return SlipAssignment::query()
+            ->where('slip', 'student-referral-slip')
+            ->latest('id')
+            ->firstOrFail();
     }
 }

@@ -63,7 +63,7 @@ class Profile extends Component
 
         $user->sendEmailVerificationNotification();
 
-        Flux::toast(text: __('A new verification link has been sent to your email address.'));
+        Flux::toast(text: __('A new verification code has been sent to your email address.'));
     }
 
     #[Computed]

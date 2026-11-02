@@ -10,31 +10,50 @@ class SlipCatalog
     public static function all(): array
     {
         return [
-            'case-referral-slip' => [
-                'title' => 'Case Referral Slip',
-                'pdf' => 'CASE-REFERRAL-SLIP.pdf',
-                'groups' => [[
-                    'title' => 'Referral Information',
-                    'fields' => [
-                        self::field('recipient', 'Refer to (office or person)', 40, 115, 150, true),
-                        self::field('student_name', 'Student Name', 90, 135, 105, true),
-                        self::field('program', 'Program / Degree and Year', 20, 145, 160, true),
-                        self::field('observations', 'Initial Observations', 20, 176, 175, true, 'textarea', 5),
-                    ],
-                ]],
-            ],
             'class-admission-slip' => [
                 'title' => 'Class Admission Slip',
                 'pdf' => 'CLASS-ADMISSION-SLIP.pdf',
                 'repeat_y' => [0, 160],
-                'groups' => [
-                    self::studentGroup([
-                        self::field('sex', 'Sex', 125, 82, 65),
-                        self::field('referral_slip', 'Reference Referral Slip No.', 20, 89, 95),
-                        self::field('date_absent', 'Date / Time Absent or Tardy', 68, 97, 127, true),
-                        self::field('days_absent', 'Number of Days Absent / Tardy', 82, 104, 113, true),
-                        self::field('absence_causes', "Student's Reason / Supporting Proof (Excused or Not)", 20, 124, 175, true, 'textarea', 3),
+                'prefilled_fields' => [
+                    self::field('student_name', 'Name of Student', 36, 68, 152),
+                    self::field('sex', 'Sex', 146, 68, 48),
+                    self::field('program_year', 'Degree Program & Year Level', 51, 73, 142),
+                    self::field('date_absent', 'Date/s Absent/Tardy', 50, 89, 138),
+                    self::field('days_absent', 'Number of day/s absent/tardy', 58, 95, 130),
+                ],
+                'groups' => [[
+                    'title' => 'Student Information',
+                    'fields' => [
+                        self::field('student_id', 'Student ID', 36, 60, 105, true),
+                        self::checks('absence_causes', 'Cause/s of Absences', [
+                            'health_related' => ['Health-related concerns', 14, 104],
+                            'personal_concerns' => ['Personal concerns', 94, 104],
+                            'family_responsibilities' => ['Family responsibilities', 174, 104],
+                            'socio_cultural' => ['Socio-cultural concern', 14, 109],
+                            'environmental' => ['Environmental', 94, 109],
+                            'behavioral' => ['Behavioral', 174, 109],
+                            'extracurricular' => ['Official co/extra-curricular activity', 14, 114],
+                            'other' => ['Others', 94, 114],
+                        ]),
+                    ],
+                ]],
+                'guidance_fields' => [
+                    self::field('referral_slip_number', 'Reference Referral Slip No.', 90, 79, 55, true),
+                    self::field('date_received', 'Date Received', 187, 79, 25, true, 'date'),
+                    self::checks('actions_taken', 'Action/s Taken', [
+                        'verified_documents' => ['Verified supporting document/s', 14, 128],
+                        'interviewed_with_guidance' => ['Interviewed with guidance', 94, 128],
+                        'life_coaching' => ['Life coaching', 14, 133],
+                        'parent_conference' => ['Parent conference', 94, 133],
+                        'other_action' => ['Other', 14, 138],
                     ]),
+                    [
+                        ...self::field('excused_status', 'Absence Decision', 94, 143, 75, true, 'select'),
+                        'options' => [
+                            'excused' => 'Excused',
+                            'unexcused' => 'Unexcused',
+                        ],
+                    ],
                 ],
             ],
             'feedback-form' => [
@@ -51,23 +70,23 @@ class SlipCatalog
             ],
             'qf-bo-oss-04-client-information-form' => [
                 'title' => 'Client Information Form',
-                'pdf' => 'QF-BO-OSS-04-Client-Information-Form.pdf',
+                'pdf' => 'Client-Information-Form.pdf',
                 'groups' => [
                     [
                         'title' => 'Personal Information',
                         'fields' => [
-                            self::field('last_name', 'Last Name', 183, 91, 42, true, 'text', 1, 1),
-                            self::field('first_name', 'Given Name', 230, 91, 38, true, 'text', 1, 1),
-                            self::field('middle_name', 'Middle Name', 272, 91, 45, false, 'text', 1, 1),
-                            self::field('student_id', 'Student ID Number', 272, 83, 45, true, 'text', 1, 1),
+                            [...self::field('last_name', 'Last Name', 201, 86, 25, true, 'text', 1, 1), 'readonly' => true],
+                            [...self::field('first_name', 'Given Name', 230, 86, 35, true, 'text', 1, 1), 'readonly' => true],
+                            [...self::field('middle_name', 'Middle Name', 270, 86, 20, false, 'text', 1, 1), 'readonly' => true],
+                            [...self::field('student_id', 'Student ID Number', 292, 86, 25, true, 'text', 1, 1), 'readonly' => true],
                             self::field('contact_number', 'Contact Number', 183, 100, 50, true, 'text', 1, 1),
-                            self::field('course_year', 'Course and Year', 254, 100, 63, true, 'text', 1, 1),
+                            [...self::field('course_year', 'Course and Year', 254, 100, 63, true, 'text', 1, 1), 'readonly' => true],
                             self::field('birth_date', 'Birth Date', 183, 108, 38, false, 'date', 1, 1),
-                            self::field('sex', 'Sex', 229, 108, 30, false, 'text', 1, 1),
+                            [...self::field('sex', 'Sex', 229, 108, 30, false, 'text', 1, 1), 'readonly' => true],
                             self::field('civil_status', 'Civil Status', 264, 108, 45, false, 'text', 1, 1),
                             self::field('nationality', 'Nationality', 183, 116, 45, false, 'text', 1, 1),
                             self::field('birth_place', 'Birth Place', 232, 116, 50, false, 'text', 1, 1),
-                            self::field('email', 'Email Address', 282, 116, 35, false, 'text', 1, 1),
+                            [...self::field('email', 'Email Address', 282, 116, 35, false, 'text', 1, 1), 'readonly' => true],
                             self::field('languages', 'Languages / Dialects', 183, 126, 133, false, 'text', 1, 1),
                             self::field('address', 'Address while Studying in BSU', 183, 137, 133, true, 'textarea', 2, 1),
                             self::field('disability', 'Disability (if any)', 202, 161, 110, false, 'text', 1, 1),
@@ -109,41 +128,6 @@ class SlipCatalog
                     ],
                 ],
             ],
-            'qf-bo-oss-19-scholars-accomplishment-report' => [
-                'title' => 'Scholarship Grantee Accomplishment Report',
-                'pdf' => 'QF-BO-OSS-19-Scholars-Accomplishment-Report.pdf',
-                'groups' => [[
-                    'title' => 'Scholarship Accomplishments',
-                    'fields' => [
-                        self::field('student_id', 'ID Number', 30, 39, 60, true),
-                        self::field('student_name', 'Name', 67, 39, 178, true),
-                        self::field('course_year', 'Course and Year', 276, 39, 44, true),
-                        self::field('activity_sponsor_1', 'Activity 1 Sponsor / Agency', 8, 58, 55),
-                        self::field('activity_title_1', 'Activity 1 Title', 67, 58, 60),
-                        self::field('activity_date_1', 'Activity 1 Date', 128, 58, 58),
-                        self::field('activity_venue_1', 'Activity 1 Venue', 190, 58, 42),
-                        self::field('activity_verification_1', 'Activity 1 Verification', 235, 58, 87),
-                        self::field('activity_sponsor_2', 'Activity 2 Sponsor / Agency', 8, 66, 55),
-                        self::field('activity_title_2', 'Activity 2 Title', 67, 66, 60),
-                        self::field('activity_date_2', 'Activity 2 Date', 128, 66, 58),
-                        self::field('activity_venue_2', 'Activity 2 Venue', 190, 66, 42),
-                        self::field('activity_verification_2', 'Activity 2 Verification', 235, 66, 87),
-                        self::field('activity_sponsor_3', 'Activity 3 Sponsor / Agency', 8, 74, 55),
-                        self::field('activity_title_3', 'Activity 3 Title', 67, 74, 60),
-                        self::field('activity_date_3', 'Activity 3 Date', 128, 74, 58),
-                        self::field('activity_venue_3', 'Activity 3 Venue', 190, 74, 42),
-                        self::field('activity_verification_3', 'Activity 3 Verification', 235, 74, 87),
-                        self::field('fruit_tree_type', 'Type of Fruit Trees', 8, 105, 130),
-                        self::field('date_planted', 'Date Planted', 150, 105, 55, false, 'date'),
-                        self::field('plant_area', 'Area / Location', 213, 105, 110),
-                        self::field('quarter_3_report', 'Third Quarter Narrative', 8, 125, 74, false, 'textarea', 3),
-                        self::field('quarter_4_report', 'Fourth Quarter Narrative', 88, 125, 74, false, 'textarea', 3),
-                        self::field('quarter_1_report', 'First Quarter Narrative', 168, 125, 74, false, 'textarea', 3),
-                        self::field('quarter_2_report', 'Second Quarter Narrative', 248, 125, 74, false, 'textarea', 3),
-                        self::field('verification_mode', 'Mode of Verification', 8, 151, 315, false, 'textarea', 2),
-                    ],
-                ]],
-            ],
             'student-leaveof-absence-slip' => [
                 'title' => 'Student Leave of Absence Slip',
                 'pdf' => 'STUDENT-LEAVEOF-ABSENCE-SLIP.pdf',
@@ -174,20 +158,18 @@ class SlipCatalog
             'student-referral-slip' => [
                 'title' => 'Student Referral Slip',
                 'pdf' => 'STUDENT-REFERRAL-SLIP.pdf',
-                'repeat_y' => [0, 160],
+                'pdf_fields' => [
+                    ['key' => 'referred_by_name', 'label' => 'Referred by', 'type' => 'text', 'pdf' => ['page' => 1, 'x' => 33, 'y' => 94.5, 'width' => 48], 'auto_fit' => true],
+                    ['key' => 'referred_date', 'label' => 'Referral issue date', 'type' => 'date', 'pdf' => ['page' => 1, 'x' => 47, 'y' => 101.5, 'width' => 35]],
+                    ['key' => 'received_by_name', 'label' => 'Received by', 'type' => 'text', 'pdf' => ['page' => 1, 'x' => 141, 'y' => 94.5, 'width' => 55], 'auto_fit' => true],
+                    ['key' => 'received_date', 'label' => 'Referral received date', 'type' => 'date', 'pdf' => ['page' => 1, 'x' => 155, 'y' => 101.5, 'width' => 35]],
+                    ['key' => 'document_code', 'label' => 'Document Code', 'type' => 'text', 'pdf' => ['page' => 1, 'x' => 157, 'y' => 15, 'width' => 24], 'pdf_color' => [220, 0, 0], 'auto_fit' => true],
+                    ['key' => 'revision_number', 'label' => 'Revision Number', 'type' => 'text', 'pdf' => ['page' => 1, 'x' => 200, 'y' => 15, 'width' => 10], 'pdf_color' => [220, 0, 0], 'auto_fit' => true],
+                    ['key' => 'effectivity_date', 'label' => 'Effectivity Date', 'type' => 'date', 'pdf' => ['page' => 1, 'x' => 157, 'y' => 26, 'width' => 24]],
+                    ['key' => 'control_number', 'label' => 'Control Number', 'type' => 'text', 'pdf' => ['page' => 1, 'x' => 190, 'y' => 26, 'width' => 15], 'pdf_color' => [220, 0, 0], 'auto_fit' => true],
+                ],
                 'groups' => [
-                    self::studentGroup([
-                        self::field('sex', 'Sex', 145, 76, 48),
-                        self::checks('referral_reasons', 'Reason for Referral', [
-                            'class_attendance' => ['Class Attendance', 12, 102],
-                            'psychological_testing' => ['Psychological Testing', 12, 107],
-                            'student_housing' => ['Student Housing', 12, 112],
-                            'academic_deficiencies' => ['Academic Deficiencies', 145, 102],
-                            'scholarship_grant_assistance' => ['Scholarship / Grant Assistance', 145, 107],
-                            'student_employment' => ['Student Employment', 145, 112],
-                        ]),
-                        self::field('other_reason', 'Other Reason', 24, 119, 170),
-                    ], false),
+                    self::referralStudentGroup(),
                 ],
             ],
             'student-withdrawal-dropping-shifting-counseling-slip' => [
@@ -208,6 +190,49 @@ class SlipCatalog
         ];
     }
 
+    /** @return array{title: string, fields: list<array<string, mixed>>} */
+    private static function referralStudentGroup(): array
+    {
+        $group = self::studentGroup([
+                        self::field('sex', 'Sex', 149.5, 55.5, 55, true),
+                        self::checks('referral_reasons', 'Reason for Referral', [
+                            'class_attendance' => ['Class Attendance', 14, 70],
+                            'psychological_testing' => ['Psychological Testing', 14, 75],
+                            'student_housing' => ['Student Housing (Dormitory)', 14, 80],
+                            'academic_deficiencies' => ['Academic Deficiencies', 112, 70],
+                            'scholarship_grant_assistance' => ['Scholarship/Grant Assistance', 112, 75],
+                            'student_employment' => ['Student Employment (SA/SPS)', 112, 80],
+                            'other' => ['Other', 14, 85],
+                        ]),
+                        self::field('date_absent', 'Date/s Absent/Tardy', 75, 70, 48, true, 'text', 1, 1, false),
+                        self::field('days_absent', 'Number of day/s absent/tardy', 0, 0, 1, true, 'number', 1, 1, false),
+                        self::field('other_reason', 'Other Reason', 27, 84.5, 182),
+                    ], false);
+
+        foreach ($group['fields'] as &$field) {
+            if ($field['key'] === 'request_date') {
+                $field['pdf']['x'] = 155;
+                $field['pdf']['y'] = 47;
+                $field['pdf']['width'] = 55;
+            } elseif ($field['key'] === 'student_id') {
+                $field['pdf']['x'] = 33;
+                $field['pdf']['y'] = 48;
+                $field['pdf']['width'] = 115;
+            } elseif ($field['key'] === 'student_name') {
+                $field['pdf']['x'] = 37;
+                $field['pdf']['y'] = 51.5;
+                $field['pdf']['width'] = 164;
+            } elseif ($field['key'] === 'program_year') {
+                $field['pdf']['x'] = 52.5;
+                $field['pdf']['y'] = 55.5;
+                $field['pdf']['width'] = 145;
+            }
+        }
+        unset($field);
+
+        return $group;
+    }
+
     /**
      * @return array<string, array{title: string, pdf: string, repeat_y?: list<float>, groups: list<array{title: string, fields: list<array<string, mixed>>}>}>
      */
@@ -216,7 +241,6 @@ class SlipCatalog
         $slips = match ($role) {
             'teacher' => ['student-referral-slip'],
             'guidance_counselor' => [
-                'qf-bo-oss-04-client-information-form',
                 'class-admission-slip',
             ],
             default => [],
@@ -255,16 +279,16 @@ class SlipCatalog
      * @param  list<array<string, mixed>>  $extra
      * @return array{title: string, fields: list<array<string, mixed>>}
      */
-    private static function studentGroup(array $extra = [], bool $includeCollege = true): array
+    private static function studentGroup(array $extra = [], bool $includeCollege = true, float $studentInfoYOffset = 0): array
     {
         return [
             'title' => 'Student Information',
             'fields' => [
-                self::field('student_id', 'Student ID Number', 40, 54, 105, true),
-                self::field('request_date', 'Date', 150, 54, 45, false, 'date'),
-                self::field('student_name', 'Name of Student', 43, 59, 152, true),
-                self::field('program_year', 'Degree Program and Year Level', 75, 64, 120, true),
-                ...($includeCollege ? [self::field('college', 'College', 33, 69, 162)] : []),
+                self::field('student_id', 'Student ID Number', 40, 54 + $studentInfoYOffset, 105, true),
+                self::field('request_date', 'Date', 150, 54 + $studentInfoYOffset, 45, false, 'date'),
+                self::field('student_name', 'Name of Student', 43, 59 + $studentInfoYOffset, 152, true),
+                self::field('program_year', 'Degree Program and Year Level', 60, 64 + $studentInfoYOffset, 135, true),
+                ...($includeCollege ? [self::field('college', 'College', 33, 69 + $studentInfoYOffset, 162)] : []),
                 ...$extra,
             ],
         ];
@@ -283,15 +307,18 @@ class SlipCatalog
         string $type = 'text',
         int $rows = 1,
         int $page = 1,
+        bool $includePdf = true,
     ): array {
-        return [
+        $field = [
             'key' => $key,
             'label' => $label,
             'type' => $type,
             'required' => $required,
             'rows' => $rows,
-            'pdf' => ['page' => $page, 'x' => $x, 'y' => $y, 'width' => $width],
+            'pdf' => $includePdf ? ['page' => $page, 'x' => $x, 'y' => $y, 'width' => $width] : null,
         ];
+
+        return $field;
     }
 
     /**

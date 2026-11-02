@@ -170,7 +170,6 @@ return [
         /* @chisel-registration */
         Features::registration(),
         /* @end-chisel-registration */
-        Features::resetPasswords(),
         /* @chisel-email-verification */
         Features::emailVerification(),
         /* @end-chisel-email-verification */

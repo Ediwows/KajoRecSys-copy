@@ -5,15 +5,22 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
+        @if ($errors->any())
+            <div role="alert" class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+                {{ $errors->first() }}
+            </div>
+        @endif
+
         {{-- @chisel-passkeys --}}
         <x-passkey-verify />
         {{-- @end-chisel-passkeys --}}
 
-        <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
+        <form id="login-form" method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
             @csrf
 
             <!-- Email Address -->
             <flux:input
+                id="login-email"
                 name="email"
                 :label="__('Email address')"
                 :value="old('email')"
@@ -27,6 +34,7 @@
             <!-- Password -->
             <div class="relative">
                 <flux:input
+                    id="login-password"
                     name="password"
                     :label="__('Password')"
                     type="password"
@@ -60,4 +68,23 @@
         </div>
         {{-- @end-chisel-registration --}}
     </div>
+
+    <script>
+        document.getElementById('login-form')?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.isComposing || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+                return;
+            }
+
+            const email = document.getElementById('login-email');
+            const password = document.getElementById('login-password');
+
+            if (email && !email.value.trim()) {
+                event.preventDefault();
+                email.focus();
+            } else if (password && !password.value) {
+                event.preventDefault();
+                password.focus();
+            }
+        });
+    </script>
 </x-layouts::auth>

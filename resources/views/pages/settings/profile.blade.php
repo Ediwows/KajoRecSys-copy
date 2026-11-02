@@ -99,13 +99,13 @@ new #[Title('Profile settings')] class extends Component {
                             {{ __('Your email address is unverified.') }}
 
                             <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
+                                {{ __('Click here to re-send the verification code.') }}
                             </flux:link>
                         </flux:text>
 
                         @if (session('status') === 'verification-link-sent')
                             <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
-                                {{ __('A new verification link has been sent to your email address.') }}
+                                {{ __('A new verification code has been sent to your email address.') }}
                             </flux:text>
                         @endif
                     </div>

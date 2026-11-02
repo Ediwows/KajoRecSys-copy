@@ -3,7 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Notifications\EmailOtp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
@@ -38,5 +40,35 @@ class TwoFactorChallengeTest extends TestCase
             'email' => $user->email,
             'password' => 'password',
         ])->assertRedirect(route('two-factor.login'));
+    }
+
+    public function test_user_can_choose_email_otp_for_two_factor_login(): void
+    {
+        Notification::fake();
+        $user = User::factory()->withTwoFactor()->create();
+
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertRedirect(route('two-factor.login'));
+
+        $this->get(route('two-factor.login'))
+            ->assertOk()
+            ->assertSee('Send a code to my email');
+
+        $this->from(route('two-factor.login'))
+            ->post(route('two-factor.email.send'))
+            ->assertRedirect(route('two-factor.login'))
+            ->assertSessionHas('email_otp_sent', true);
+
+        $notification = Notification::sent($user, EmailOtp::class)->first();
+        $this->assertNotNull($notification);
+        $this->assertSame(1, preg_match('/\b\d{6}\b/', $notification->toMail($user)->introLines[1], $matches));
+
+        $this->from(route('two-factor.login'))
+            ->post(route('two-factor.email.verify'), ['otp' => $matches[0]])
+            ->assertSessionHasNoErrors();
+
+        $this->assertAuthenticatedAs($user);
     }
 }

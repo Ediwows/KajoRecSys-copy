@@ -22,6 +22,11 @@ class DashboardTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->get(route('dashboard'));
-        $response->assertOk();
+        $response->assertOk()
+            ->assertSee('data-system-theme', false)
+            ->assertSee('bg-[#f6f5f1]', false)
+            ->assertSee('dark:bg-[#111712]', false)
+            ->assertSee('bg-[#09ba44]', false)
+            ->assertSee('dark:bg-[#20783e]', false);
     }
 }

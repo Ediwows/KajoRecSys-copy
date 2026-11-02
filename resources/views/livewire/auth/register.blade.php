@@ -21,17 +21,10 @@
 
             @csrf
 
-            <!-- Name -->
-            <flux:input
-                name="name"
-                :label="__('Full Name')"
-                :value="old('name')"
-                type="text"
-                required
-                autofocus
-                autocomplete="name"
-                :placeholder="__('Enter your full name')"
-            />
+            <flux:input name="first_name" :label="__('First name')" :value="old('first_name')" type="text" required autofocus autocomplete="given-name" />
+            <flux:input name="last_name" :label="__('Last name')" :value="old('last_name')" type="text" required autocomplete="family-name" />
+            <flux:input name="middle_initial" :label="__('M.I. (optional)')" :value="old('middle_initial')" type="text" autocomplete="additional-name" placeholder="e.g. A" />
+            <flux:input name="name_extension" :label="__('Name extension (optional)')" :value="old('name_extension')" type="text" placeholder="e.g. Jr., III" />
 
          
            <!-- ID Number -->
@@ -45,8 +38,9 @@
                 :placeholder="__('Enter your ID number')"
             />
             <flux:select name="gender" label="Gender" required>
-                <flux:select.option value="male">Male</flux:select.option>
-                <flux:select.option value="female">Female</flux:select.option>
+                <flux:select.option value="">Select gender</flux:select.option>
+                <flux:select.option value="male" :selected="old('gender') === 'male'">Male</flux:select.option>
+                <flux:select.option value="female" :selected="old('gender') === 'female'">Female</flux:select.option>
             </flux:select>
 
             <!-- Email Address -->

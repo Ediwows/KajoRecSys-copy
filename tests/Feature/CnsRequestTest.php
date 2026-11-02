@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CnsRequest;
 use App\Models\SlipAssignment;
 use App\Models\User;
+use App\Support\SlipCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,6 +48,9 @@ class CnsRequestTest extends TestCase
             ->assertOk()
             ->assertDontSee('Certificate of No Scholarship');
 
+        $this->assertArrayNotHasKey('case-referral-slip', SlipCatalog::all());
+        $this->assertArrayNotHasKey('qf-bo-oss-19-scholars-accomplishment-report', SlipCatalog::all());
+
         $this->assertDatabaseCount('slip_assignments', 0);
     }
 
@@ -81,7 +85,7 @@ class CnsRequestTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_teacher_cannot_complete_a_legacy_cns_assignment_for_a_student(): void
+    public function test_legacy_cns_assignments_cannot_be_filled_or_submitted(): void
     {
         $teacher = User::factory()->create([
             'id_number' => 'TEACHER-CNS-3001',
@@ -99,9 +103,12 @@ class CnsRequestTest extends TestCase
             'slip' => 'cns',
         ]);
 
-        $this->actingAs($teacher)
-            ->post(route('assigned-slips.cns-submit', $assignment), [])
-            ->assertForbidden();
+        $this->actingAs($student)
+            ->get(route('assigned-slips.fillup', $assignment))
+            ->assertNotFound();
+        $this->actingAs($student)
+            ->post("/assigned-slips/{$assignment->id}/cns-submit", [])
+            ->assertNotFound();
 
         $this->assertDatabaseCount('cns_requests', 0);
     }

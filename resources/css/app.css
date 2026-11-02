@@ -61,6 +61,66 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+@layer base {
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    :where(main, section, article, form, header, footer, [class*="flex"], [class*="grid"]) {
+        min-width: 0;
+    }
+
+    :where([class*="flex"], [class*="grid"]) > * {
+        min-width: 0;
+    }
+
+    :where(input, select, textarea, button) {
+        max-width: 100%;
+    }
+
+    :where(img, iframe, video, canvas) {
+        max-width: 100%;
+    }
+
+    table {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    main.min-h-screen {
+        padding: 1rem !important;
+    }
+
+    main.min-h-screen :where(.rounded-2xl, .rounded-3xl)[class~="p-6"],
+    main.min-h-screen :where(.rounded-2xl, .rounded-3xl)[class~="p-5"] {
+        padding: 1rem !important;
+    }
+
+    main.min-h-screen :where([class~="sm:p-8"], [class~="lg:p-10"]) {
+        padding: 1rem !important;
+    }
+
+    main.min-h-screen :where([class~="gap-8"], [class~="space-y-8"]) {
+        gap: 1rem !important;
+    }
+
+    main.min-h-screen table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    dialog {
+        max-width: calc(100vw - 1rem);
+        max-height: calc(100dvh - 1rem);
+        overflow-y: auto;
+    }
+}
+
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */

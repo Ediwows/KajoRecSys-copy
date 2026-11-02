@@ -16,7 +16,7 @@
                             {{ __('Your email address is unverified.') }}
 
                             <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
+                                {{ __('Click here to re-send the verification code.') }}
                             </flux:link>
                         </flux:text>
 

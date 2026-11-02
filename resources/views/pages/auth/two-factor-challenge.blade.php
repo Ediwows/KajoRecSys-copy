@@ -32,7 +32,7 @@
             <div x-show="!showRecoveryInput">
                 <x-auth-header
                     :title="__('Authentication code')"
-                    :description="__('Enter the authentication code provided by your authenticator application.')"
+                    :description="__('Enter your authenticator code, or receive a one-time code at your registered email address.')"
                 />
             </div>
 
@@ -96,6 +96,37 @@
                     </div>
                 </div>
             </form>
+
+            <div class="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-700">
+                @if (session('status'))
+                    <flux:text class="mb-4 text-center font-medium !dark:text-green-400 !text-green-600">
+                        {{ session('status') }}
+                    </flux:text>
+                @endif
+
+                @if ($errors->has('otp'))
+                    <flux:text color="red" class="mb-4 text-center">
+                        {{ $errors->first('otp') }}
+                    </flux:text>
+                @endif
+
+                @if (session('email_otp_sent'))
+                    <form method="POST" action="{{ route('two-factor.email.verify') }}" class="mb-4 space-y-4">
+                        @csrf
+                        <flux:input name="otp" :label="__('Email code')" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" />
+                        <flux:button variant="primary" type="submit" class="w-full">
+                            {{ __('Sign in with email code') }}
+                        </flux:button>
+                    </form>
+                @endif
+
+                <form method="POST" action="{{ route('two-factor.email.send') }}">
+                    @csrf
+                    <flux:button variant="ghost" type="submit" class="w-full">
+                        {{ __('Send a code to my email') }}
+                    </flux:button>
+                </form>
+            </div>
         </div>
     </div>
 </x-layouts::auth>
